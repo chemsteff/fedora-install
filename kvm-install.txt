@@ -33,13 +33,10 @@ sudo virt-host-validate qemu
 # 
 # VT-d is used to implement a feature known as PCIe Pass-through. VT-d enables virtual machines to have direct access to specific I/O devices such as graphics cards, network adapters, and storage controllers.
 #
-# ---
-# 
 # QEMU: Checking if IOMMU is enabled by kernel : WARN (IOMMU appears to be disabled in kernel. Add intel_iommu=on to kernel cmdline arguments)
 # 
 # Meaning: Your Intel CPU supports the VT-d capability, but it must be enabled in the kernel.
 # 
-
 
 # To enable VT-d, open the /etc/default/grub file and add 'intel_iommu=on iommu=pt' to the GRUB_CMDLINE_LINUX line.
 sudo vim /etc/default/grub
