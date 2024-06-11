@@ -45,7 +45,7 @@ sudo virt-host-validate qemu
 sudo vim /etc/default/grub
 
 With an AMD CPU, IOMMU is activated by default. To activate pass-through mode as well, simply add iommu=pt.
-$ sudo vim /etc/default/grub
+sudo vim /etc/default/grub
 
 # Regenerate the grub configuration file.
 sudo grub2-mkconfig -o /boot/grub2/grub.cfg
