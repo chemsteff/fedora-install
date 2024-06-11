@@ -1,1 +1,8 @@
 https://github.com/pwr-Solaar/Solaar
+
+sudo dnf install solaar
+
+sudo mv 42-logitech-unify-permissions.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+
+In Wayland sollten Sie stattdessen rules.d-uinput/42-logitech-unify-permissions.rules kopieren. Lassen Sie udev seine Regeln neu laden, indem Sie sudo udevadm control --reload-rules ausführen.
