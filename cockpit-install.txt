@@ -1,0 +1,15 @@
+...
+
+
+# Install cockpit:
+sudo dnf install cockpit
+
+# Enable cockpit:
+sudo systemctl enable --now cockpit.socket
+
+# Open the firewall if necessary:
+sudo firewall-cmd --add-service=cockpit
+sudo firewall-cmd --add-service=cockpit --permanent
+
+  
+
