@@ -1,3 +1,86 @@
 ...
 #
-# Install KVM on Fedora
+## Install KVM on Fedora
+
+# There are a number of other virtualization management packages that are recommended when using virtualization.
+sudo dnf install qemu-kvm libvirt virt-install virt-manager virt-viewer edk2-ovmf swtpm qemu-img guestfs-tools libosinfo tuned
+
+## Install VirtIO Drivers for Windows Guests.
+
+# Install the VirtIO repository.
+sudo wget https://fedorapeople.org/groups/virt/virtio-win/virtio-win.repo -O /etc/yum.repos.d/virtio-win.repo
+
+# Install the virtio-win package.
+sudo dnf install virtio-win
+
+## Enable the Modular libvirt Daemon
+for drv in qemu interface network nodedev nwfilter secret storage; do \
+    sudo systemctl enable virt${drv}d.service; \
+    sudo systemctl enable virt${drv}d{,-ro,-admin}.socket; \
+  done
+
+# A reboot is recommended so that the KVM can properly start.
+sudo reboot
+
+## Validate Host Virtualization Setup
+sudo virt-host-validate qemu
+
+# If the following warning message appears from the validation tool:
+#
+# QEMU: Checking for device assignment IOMMU support : WARN (No ACPI DMAR table found, IOMMU either disabled in BIOS or not supported by this hardware platform)
+#
+# Meaning: Your Intel processor only supports the VT-x (vmx) feature and not VT-d.
+# 
+# VT-d is used to implement a feature known as PCIe Pass-through. VT-d enables virtual machines to have direct access to specific I/O devices such as graphics cards, network adapters, and storage controllers.
+#
+# ---
+# 
+# QEMU: Checking if IOMMU is enabled by kernel : WARN (IOMMU appears to be disabled in kernel. Add intel_iommu=on to kernel cmdline arguments)
+# 
+# Meaning: Your Intel CPU supports the VT-d capability, but it must be enabled in the kernel.
+# 
+
+
+# To enable VT-d, open the /etc/default/grub file and add 'intel_iommu=on iommu=pt' to the GRUB_CMDLINE_LINUX line.
+sudo vim /etc/default/grub
+
+With an AMD CPU, IOMMU is activated by default. To activate pass-through mode as well, simply add iommu=pt.
+$ sudo vim /etc/default/grub
+
+# Regenerate the grub configuration file.
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+sudo reboot
+
+# Validate the host again to ensure that no issues remain.
+sudo virt-host-validate qemu
+
+# On the Intel CPU, verify that the VT-d is enabled.
+dmesg | grep -i -e DMAR -e IOMMU
+
+# On the AMD CPU, verify that the AMD-Vi is enabled.
+dmesg | grep -i -e AMD-Vi
+
+# QEMU: Checking for secure guest support : WARN (Unknown if this platform has Secure Guest support)
+# 
+# Meaning: Enable AMD Secure Encrypted Virtualization (SEV) support.
+# 
+# If you have an Intel CPU, you can safely ignore this warning. This applies to AMD CPUs.
+# 
+# The SEV feature is only supported on (most) EPYC and Ryzen Pro processors. This feature enables libvirt/kvm to encrypt memory.
+
+# Test feature support
+lscpu | grep sev
+
+## Optimize the Host with TuneD
+
+# Enable and start the TuneD service and optimizes the host for running KVM guests
+sudo systemctl enable --now tuned
+sudo tuned-adm profile virtual-host
+
+# Check errors.
+sudo tuned-adm verify
+
+## Configure a Network Bridge
+
+
+
