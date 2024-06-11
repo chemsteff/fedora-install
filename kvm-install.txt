@@ -82,5 +82,72 @@ sudo tuned-adm verify
 
 ## Configure a Network Bridge
 
+# Show the interfaces and their names.
+sudo nmcli device status
 
+# Create a bridge interface
+sudo nmcli connection add type bridge con-name bridge0 ifname bridge0
+
+# Assign the interface to the bridge
+sudo nmcli connection add type ethernet slave-type bridge con-name 'Bridge connection 1' ifname enp2s0 master bridge0
+
+# Activate the connection.
+sudo nmcli connection up bridge0
+
+# Enable the connection.autoconnect-slaves parameter of the bridge connection.
+sudo nmcli connection modify bridge0 connection.autoconnect-slaves 1
+
+# Reactivate the bridge.
+sudo nmcli connection up bridge0
+
+# Verify the connection.
+sudo nmcli device status
+ip -brief addr show dev bridge0
+
+# Create an XML file called nwbridge.xml and fill it with the following information.
+vim nwbridge.xml
+<network>
+  <name>nwbridge</name>
+  <forward mode='bridge'/>
+  <bridge name='bridge0'/>
+</network>
+
+# Define nwbridge as a persistent virtual network.
+sudo virsh net-define nwbridge.xml
+
+# Activate the nwbridge and set it to autostart on boot.
+sudo virsh net-start nwbridge
+sudo virsh net-autostart nwbridge
+
+# Now you can safely delete the nwbridge.xml file. 
+rm nwbridge.xml
+
+# Finally, verify that the virtual network bridge nwbridge is up and running.
+sudo virsh net-list --all
+
+## Give the User System-Wide Permission
+
+# Add the regular user to the libvirt group.
+sudo usermod -aG libvirt $USER
+
+# Define the environment variable LIBVIRT_DEFAULT_URI in the local .bashrc file of the user.
+echo "export LIBVIRT_DEFAULT_URI='qemu:///system'" >> ~/.bashrc
+source ~/.bashrc
+
+# Check again as a regular user to see which instance you are connected to.
+virsh uri
+-> qemu:///system
+
+## Set ACL on the Images Directory
+ls /var/lib/libvirt/images/
+-> ls: cannot open directory '/var/lib/libvirt/images/': Permission denied
+
+# First, recursively remove any existing ACL permissions on the directory.
+sudo setfacl -R -b /var/lib/libvirt/images
+
+# Grant regular user permission to the directory recursively.
+sudo setfacl -R -m u:$USER:rwX /var/lib/libvirt/images
+
+# All existing directories and files (if any) in /var/lib/libvirt/images/ now have permissions. However, any new directories and files created within this directory will not have any special permissions. To get around this, we need to enable 'default' special permissions. The 'default acls' can only be applied to directories and not to files.
+sudo setfacl -m d:u:$USER:rwx /var/lib/libvirt/images
 
