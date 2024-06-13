@@ -1,0 +1,26 @@
+sudo dnf -yq install https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+sudo dnf -yq install https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+echo "REMOVING NAUTILUS"
+sudo dnf -yq erase nautilus
+
+echo "INSTALLING THUNAR"
+sudo dnf -yq install thunar
+
+echo "MAKING THUNAR DEFAULT"
+xdg-mime default thunar.desktop inode/directory application/x-gnome-saved-search
+# some GNOME apps may have the "nautilus" command hardcoded. With this, "nautilus" calls "thunar")
+sudo cp /usr/bin/thunar /usr/bin/nautilus
+
+echo "INSTALLING THUNAR ADDONS"
+# catfish: recursive search (seperate app - needs custom action)
+sudo dnf -yq install catfish xfce4-terminal file-roller thunar-archive-plugin
+
+echo "ENABLING THUNAR PHOTO AND VIDEO THUMBNAILS"
+# tumbler: photo thumbs, the rest are for video thumbs
+sudo dnf -yq install tumbler gstreamer1-plugin-openh264 ffmpegthumbs ffmpegthumbnailer
+
+echo "ENABLING THUNAR ICONS IN CONTEXT MENUS AND BUTTONS"
+# Lxappearance is an app that installs gtk2 dependencies needed for this. You can use this GUI instead of the gsettings command below. Go to the "Other" section and enable "Show image on buttons" and "Show images in menus".
+sudo dnf -yq install lxappearance
+gsettings set org.gnome.settings-daemon.plugins.xsettings overrides "{'Gtk/ButtonImages': <1>, 'Gtk/MenuImages': <1>}"
