@@ -1,0 +1,5 @@
+sudo dnf install "kernel-devel-uname-r >= $(uname -r)"
+sudo dnf update
+sudo dnf copr enable kwizart/nvidia-driver-rawhide
+sudo dnf install rpmfusion-nonfree-release-rawhide
+sudo dnf --enablerepo=rpmfusion-nonfree-rawhide install akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda --nogpgcheck 
