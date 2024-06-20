@@ -1,14 +1,7 @@
-sudo dnf install "kernel-devel-uname-r >= $(uname -r)"
-sudo dnf update
-sudo dnf copr enable kwizart/nvidia-driver-rawhide
-sudo dnf install rpmfusion-nonfree-release-rawhide
-sudo dnf --enablerepo=rpmfusion-nonfree-rawhide install akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda --nogpgcheck 
+sudo dnf update --refresh
+sudo dnf install kernel-devel kernel-headers gcc make dkms acpid libglvnd-glx libglvnd-opengl libglvnd-devel pkgconfig
 
-
-sudo dnf update
+sudo dnf install https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
 sudo dnf install https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-sudo dnf --releasever=41 install akmod-nvidia xorg-x11-drv-nvidia nvidia-gpu-firmware xorg-x11-drv-nvidia-cuda --nogpgcheck
-
-sudo reboot
-
-sudo dnf upgrade --releasever=41 xorg-x11-drv-nvidia 
+sudo dnf makecache
+sudo dnf install akmod-nvidia xorg-x11-drv-nvidia-cuda
