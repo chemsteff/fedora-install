@@ -1,0 +1,206 @@
+sudo grub2-editenv - unset menu_auto_hide
+sudo btrfs filesystem label / FEDORA
+
+sudo bash -c 'cat >> /etc/dnf/dnf.conf' <<EOF
+defaultyes=True
+fastestmirror=True
+max_parallel_downloads=10
+EOF
+
+sudo dnf clean all
+sudo dnf makecache
+
+sudo dnf install vim git inotify-tools make
+
+sudo dnf update
+
+sudo reboot
+
+sudo mkdir -vp /var/lib/libvirt
+
+ROOT_UUID="$(sudo grub2-probe --target=fs_uuid /)"
+echo ${ROOT_UUID}
+
+OPTIONS="$(grep '/home' /etc/fstab \
+    | awk '{print $4}' \
+    | cut -d, -f2-)"
+
+echo ${OPTIONS}
+
+SUBVOLUMES=(
+    "opt"
+    "var/cache"
+    "var/crash"
+    "var/lib/AccountsService"
+    "var/lib/sddm"
+    "var/lib/libvirt/images"
+    "var/log"
+    "var/spool"
+    "var/tmp"
+    "var/www"
+    "home/$USER/.mozilla"
+	"home/$USER/.gnupg"
+	"home/$USER/.ssh"
+)
+
+printf '%s\n' "${SUBVOLUMES[@]}"
+
+MAX_LEN="$(printf '/%s\n' "${SUBVOLUMES[@]}" | wc -L)"
+echo ${MAX_LEN}
+
+for dir in "${SUBVOLUMES[@]}" ; do
+    if [[ -d "/${dir}" ]] ; then
+        sudo mv -v "/${dir}" "/${dir}-old"
+        sudo btrfs subvolume create "/${dir}"
+        sudo cp -ar "/${dir}-old/." "/${dir}/"
+    else
+        sudo btrfs subvolume create "/${dir}"
+    fi
+    sudo restorecon -RF "/${dir}"
+    printf "%-41s %-${MAX_LEN}s %-5s %-s %-s\n" \
+        "UUID=${ROOT_UUID}" \
+        "/${dir}" \
+        "btrfs" \
+        "subvol=${dir},${OPTIONS}" \
+        "0 0" | \
+        sudo tee -a /etc/fstab
+done
+
+sudo chown -cR $USER:$USER /home/$USER/
+sudo chmod -vR 0700 /home/$USER/{.gnupg,.ssh}
+
+cat /etc/fstab
+sudo systemctl daemon-reload
+sudo btrfs subvolume list /
+
+for dir in "${SUBVOLUMES[@]}" ; do
+    if [[ -d "/${dir}-old" ]] ; then
+        sudo rm -rvf "/${dir}-old"
+    fi
+done
+
+sudo dnf install snapper python3-dnf-plugin-snapper
+
+sudo snapper -c root create-config /
+sudo snapper -c home create-config /home
+sudo snapper list-configs
+
+sudo snapper -c root set-config ALLOW_USERS=$USER SYNC_ACL=yes
+sudo snapper -c home set-config ALLOW_USERS=$USER SYNC_ACL=yes
+
+sudo vim /etc/fstab
+UUID=0fa2b51a-9876-4905-a36a-dbb2f40e7c12 /home/madhu/.mozilla     btrfs subvol=home/madhu/.mozilla,compress=zstd:1 0 0
+UUID=0fa2b51a-9876-4905-a36a-dbb2f40e7c12 /.snapshots              btrfs subvol=.snapshots,compress=zstd:1 0 0
+UUID=0fa2b51a-9876-4905-a36a-dbb2f40e7c12 /home/.snapshots         btrfs subvol=home/.snapshots,compress=zstd:1 0 0
+
+sudo systemctl daemon-reload
+sudo mount -va
+
+sudo btrfs subvolume list /
+
+echo 'PRUNENAMES = ".snapshots"' | sudo tee -a /etc/updatedb.conf
+echo 'SUSE_BTRFS_SNAPSHOT_BOOTING="true"' | sudo tee -a /etc/default/grub
+sudo sed -i '1i set btrfs_relative_path="yes"' /boot/efi/EFI/fedora/grub.cfg
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+
+sudo snapper ls
+sudo snapper -c home ls
+
+
+git clone https://github.com/Antynea/grub-btrfs
+cd grub-btrfs
+
+sed -i \
+-e '/#GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS/a \
+GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS="systemd.volatile=state"' \
+-e '/#GRUB_BTRFS_GRUB_DIRNAME/a \
+GRUB_BTRFS_GRUB_DIRNAME="/boot/grub2"' \
+-e '/#GRUB_BTRFS_MKCONFIG=/a \
+GRUB_BTRFS_MKCONFIG=/usr/sbin/grub2-mkconfig' \
+-e '/#GRUB_BTRFS_SCRIPT_CHECK=/a \
+GRUB_BTRFS_SCRIPT_CHECK=grub2-script-check' \
+config
+
+sudo make install
+
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+sudo systemctl enable --now grub-btrfsd.service
+
+cd ..
+rm -rvf grub-btrfs
+
+sudo mkdir -v /.snapshots/1
+
+sudo bash -c "cat > /.snapshots/1/info.xml" <<EOF
+<?xml version="1.0"?>
+<snapshot>
+  <type>single</type>
+  <num>1</num>
+  <date>$(date -u +"%F %T")</date>
+  <description>first root subvolume</description>
+</snapshot>
+EOF
+
+cat /.snapshots/1/info.xml
+<?xml version="1.0"?>
+<snapshot>
+  <type>single</type>
+  <num>1</num>
+  <date>2024-04-26 14:48:07</date>
+  <description>first root subvolume</description>
+</snapshot>
+
+sudo btrfs subvolume snapshot / /.snapshots/1/snapshot
+
+SNAP_1_ID="$(sudo btrfs inspect-internal rootid /.snapshots/1/snapshot)"
+echo ${SNAP_1_ID}
+
+sudo btrfs subvolume set-default ${SNAP_1_ID} /
+sudo btrfs subvolume get-default /
+sudo reboot
+
+sudo snapper ls
+
+sudo btrfs filesystem du -s --human-readable /.snapshots/*/snapshot
+sudo snapper ls
+
+sudo mkdir -v /.snapshots/1
+sudo cp -v /.snapshots/2/info.xml /.snapshots/1/
+sudo cat /.snapshots/1/info.xml
+<?xml version="1.0"?>
+<snapshot>
+  <type>pre</type>
+  <num>2</num>
+  <date>2024-04-26 15:18:14</date>
+  <description>/usr/bin/dnf install ps_mem</description>
+  <cleanup>number</cleanup>
+</snapshot>
+
+sudo cat /.snapshots/1/info.xml
+<?xml version="1.0"?>
+<snapshot>
+  <type>single</type>
+  <num>1</num>
+  <date>2024-04-26 15:18:14</date>
+  <description>new root subvolume</description>
+</snapshot>
+
+sudo btrfs subvolume snapshot /.snapshots/2/snapshot /.snapshots/1/snapshot
+sudo btrfs inspect-internal rootid /.snapshots/1/snapshot
+
+sudo btrfs subvolume set-default 276 /
+
+sudo reboot
+sudo btrfs subvolume get-default /
+sudo btrfs property get -ts /
+ro=false
+
+sudo snapper ls
+snapper delete 2-5
+
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+
+sudo snapper -c home set-config TIMELINE_CREATE=no
+sudo systemctl enable --now snapper-timeline.timer
+sudo systemctl enable --now snapper-cleanup.timer
+
