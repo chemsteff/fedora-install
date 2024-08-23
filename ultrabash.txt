@@ -1,3 +1,6 @@
+
+wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip
+
 mkdir -p ~/build
 cd ~/build
 git clone https://github.com/christitustech/mybash
