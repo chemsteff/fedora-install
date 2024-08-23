@@ -16,6 +16,9 @@ sudo nano /etc/tigervnc/vncserver.users
 :2=user2
 :3=user3
 
+sudo firewall-cmd --permanent --add-port=5901/tcp
+firewall-cmd --reload
+
 sudo systemctl enable --now vncserver@:1
 sudo systemctl set-default multi-user.target
 reboot
