@@ -1,0 +1,26 @@
+sudo dnf install plasma-workspace-x11
+sudo dnf install *tigervnc*
+
+vncpasswd
+
+sudo nano /etc/tigervnc/vncserver-config-mandatory
+session=kde
+securitytypes=vncauth,tlsvnc
+geometry=1450x900
+alwaysshared
+
+sudo nano /etc/tigervnc/vncserver.users
+
+# Remote Port no 5901 will be assigned to first user #1, 5902 will be assigned to #2 usw.
+:1=user1
+:2=user2
+:3=user3
+
+sudo systemctl enable --now vncserver@:1
+sudo systemctl set-default multi-user.target
+reboot
+
+
+sudo systemctl status vncserver@:1
+sudo netstat -pultan
+sudo systemctl -t service -a --state running
